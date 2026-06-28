@@ -1,8 +1,13 @@
 package gui
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
+	"time"
 
 	"api_hub/internal/config"
 )
@@ -39,6 +44,7 @@ func NewServer(configPath string, cfg *config.Config, manager *RuntimeManager) h
 	s.mux.HandleFunc("/api/service/start", s.handleStart)
 	s.mux.HandleFunc("/api/service/stop", s.handleStop)
 	s.mux.HandleFunc("/api/service/status", s.handleStatus)
+	s.mux.HandleFunc("/api/test", s.handleTest)
 	return s
 }
 
@@ -115,6 +121,59 @@ func (s *Server) handleStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.writeState(w)
+}
+
+func (s *Server) handleTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var body struct {
+		Provider string `json:"provider"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSONError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+	cfg, err := config.Load(s.configPath)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	providerName := body.Provider
+	if providerName == "" {
+		providerName = cfg.Defaults.Provider
+	}
+	if providerName == "" {
+		writeJSONError(w, http.StatusBadRequest, "no provider specified")
+		return
+	}
+	provider, ok := cfg.Providers[providerName]
+	if !ok {
+		writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("provider %q not found", providerName))
+		return
+	}
+	testURL := strings.TrimRight(provider.BaseURL, "/") + "/models"
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, testURL, nil)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		writeJSON(w, map[string]any{"ok": true})
+	} else {
+		respBody, _ := io.ReadAll(resp.Body)
+		writeJSON(w, map[string]any{"ok": false, "error": fmt.Sprintf("status %d: %s", resp.StatusCode, string(respBody))})
+	}
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {

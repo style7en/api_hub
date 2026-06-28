@@ -145,6 +145,53 @@ func TestServerReturnsHTMLPage(t *testing.T) {
 	}
 }
 
+func TestServerTestRejectsGet(t *testing.T) {
+	path := writeGUIConfig(t)
+	cfg, _ := config.Load(path)
+	server := NewServer(path, cfg, NewRuntimeManager(path, cfg))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	rr := httptest.NewRecorder()
+	server.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d", rr.Code)
+	}
+}
+
+func TestServerTestRejectsInvalidJSON(t *testing.T) {
+	path := writeGUIConfig(t)
+	cfg, _ := config.Load(path)
+	server := NewServer(path, cfg, NewRuntimeManager(path, cfg))
+
+	body := bytes.NewBufferString(`not json`)
+	req := httptest.NewRequest(http.MethodPost, "/api/test", body)
+	rr := httptest.NewRecorder()
+	server.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestServerTestRejectsMissingProvider(t *testing.T) {
+	path := writeGUIConfig(t)
+	cfg, _ := config.Load(path)
+	server := NewServer(path, cfg, NewRuntimeManager(path, cfg))
+
+	body := bytes.NewBufferString(`{"provider":"nonexistent"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/test", body)
+	rr := httptest.NewRecorder()
+	server.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "not found") {
+		t.Fatalf("body = %s", rr.Body.String())
+	}
+}
+
 func writeGUIConfig(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()

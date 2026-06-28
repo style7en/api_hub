@@ -32,8 +32,8 @@ const indexHTML = `<!doctype html>
     .btn-start:hover { background: #047857; }
     .btn-stop { background: #dc2626; color: white; }
     .btn-stop:hover { background: #b91c1c; }
-    .btn-refresh { background: #334155; color: #cbd5e1; }
-    .btn-refresh:hover { background: #475569; }
+    .btn-test { background: #6366f1; color: white; }
+    .btn-test:hover { background: #4f46e5; }
     .msg { margin-top: 10px; font-size: 13px; color: #22d3ee; min-height: 20px; }
     .client-info { display: none; }
     .client-info.visible { display: block; }
@@ -67,7 +67,7 @@ const indexHTML = `<!doctype html>
     <div class="btn-row">
       <button class="btn-start" onclick="startService()">启动服务</button>
       <button class="btn-stop" onclick="stopService()">停止服务</button>
-      <button class="btn-refresh" onclick="loadState()">刷新</button>
+      <button class="btn-test" onclick="testProvider()">测试</button>
     </div>
     <div class="msg" id="message"></div>
   </div>
@@ -166,6 +166,20 @@ async function startService() {
 async function stopService() {
   userSelected = false;
   try { render(await request('/api/service/stop', {method:'POST'})); document.getElementById('message').textContent = '服务已停止'; } catch (err) { document.getElementById('message').textContent = err.message; }
+}
+
+async function testProvider() {
+  const provider = document.getElementById('provider').value;
+  if (!provider) { document.getElementById('message').textContent = '请先选择 Provider'; return; }
+  document.getElementById('message').textContent = '测试中...';
+  try {
+    const data = await request('/api/test', {method:'POST', body: JSON.stringify({provider})});
+    if (data.ok) {
+      document.getElementById('message').textContent = '测试通过: API 连接正常';
+    } else {
+      document.getElementById('message').textContent = '测试失败: ' + (data.error || '未知错误');
+    }
+  } catch (err) { document.getElementById('message').textContent = '测试失败: ' + err.message; }
 }
 
 document.getElementById('provider').addEventListener('change', function() {
