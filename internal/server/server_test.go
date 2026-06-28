@@ -78,6 +78,62 @@ func TestServerRejectsModelLessTransparentRequest(t *testing.T) {
 	}
 }
 
+func TestServerModelsRejectsPost(t *testing.T) {
+	cfg := testConfig("http://127.0.0.1:1")
+	handler := New(cfg)
+	req := httptest.NewRequest(http.MethodPost, "/v1/models", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer local-key")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "method not allowed") {
+		t.Fatalf("body = %s", rr.Body.String())
+	}
+}
+
+func TestServerChatRejectsGet(t *testing.T) {
+	cfg := testConfig("http://127.0.0.1:1")
+	handler := New(cfg)
+	req := httptest.NewRequest(http.MethodGet, "/v1/chat/completions", nil)
+	req.Header.Set("Authorization", "Bearer local-key")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "method not allowed") {
+		t.Fatalf("body = %s", rr.Body.String())
+	}
+}
+
+func TestServerDoesNotAppendErrorAfterPartialUpstreamResponse(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", "100")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"partial":`))
+	}))
+	defer upstream.Close()
+
+	cfg := testConfig(upstream.URL)
+	handler := New(cfg)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"openai/gpt-4o","messages":[]}`))
+	req.Header.Set("Authorization", "Bearer local-key")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if strings.Contains(rr.Body.String(), "api_error") {
+		t.Fatalf("body contains appended api_error: %s", rr.Body.String())
+	}
+}
+
 func TestServerRequiresAuth(t *testing.T) {
 	cfg := testConfig("http://127.0.0.1:1")
 	handler := New(cfg)

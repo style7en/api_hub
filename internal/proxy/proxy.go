@@ -32,8 +32,8 @@ func Forward(w http.ResponseWriter, r *http.Request, provider config.ProviderCon
 
 	copyResponseHeaders(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	_, err = io.Copy(w, resp.Body)
-	return err
+	_, _ = io.Copy(w, resp.Body)
+	return nil
 }
 
 func joinURL(baseURL string, requestPath string, rawQuery string) (string, error) {
