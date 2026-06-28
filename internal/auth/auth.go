@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
 	"net/http"
 	"strings"
@@ -16,7 +17,9 @@ func Middleware(apiKey string, next http.Handler) http.Handler {
 			return
 		}
 		got := strings.TrimPrefix(authorization, "Bearer ")
-		if subtle.ConstantTimeCompare([]byte(got), []byte(apiKey)) != 1 {
+		gotDigest := sha256.Sum256([]byte(got))
+		apiKeyDigest := sha256.Sum256([]byte(apiKey))
+		if subtle.ConstantTimeCompare(gotDigest[:], apiKeyDigest[:]) != 1 {
 			openaierror.Write(w, http.StatusUnauthorized, "authentication_error", "invalid or missing bearer token")
 			return
 		}

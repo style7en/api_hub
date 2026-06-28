@@ -58,3 +58,18 @@ func TestMiddlewareRejectsTokenWithoutBearerScheme(t *testing.T) {
 		t.Fatalf("status = %d", rr.Code)
 	}
 }
+
+func TestMiddlewareRejectsWrongBearerToken(t *testing.T) {
+	handler := Middleware("local-key", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("next handler should not be called")
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	req.Header.Set("Authorization", "Bearer wrong-key")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d", rr.Code)
+	}
+}
