@@ -1,0 +1,16 @@
+server:
+  address: 127.0.0.1:8080
+  api_key: local-dev-key
+
+providers:
+  openai:
+    base_url: https://api.openai.com/v1
+    api_key: ${OPENAI_API_KEY}
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+  deepseek:
+    base_url: https://api.deepseek.com/v1
+    api_key: ${DEEPSEEK_API_KEY}
+    models:
+      - deepseek-chat
