@@ -22,7 +22,7 @@ type modelInfo struct {
 
 func Handler(cfg *config.Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var data []modelInfo
+		data := make([]modelInfo, 0)
 		providerNames := make([]string, 0, len(cfg.Providers))
 		for name := range cfg.Providers {
 			providerNames = append(providerNames, name)
