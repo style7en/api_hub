@@ -32,8 +32,32 @@ func Forward(w http.ResponseWriter, r *http.Request, provider config.ProviderCon
 
 	copyResponseHeaders(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	_, _ = io.Copy(w, resp.Body)
-	return nil
+	return copyResponseBody(w, resp.Body)
+}
+
+func copyResponseBody(w http.ResponseWriter, body io.Reader) error {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		_, _ = io.Copy(w, body)
+		return nil
+	}
+
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := body.Read(buf)
+		if n > 0 {
+			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+				return nil
+			}
+			flusher.Flush()
+		}
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return nil
+		}
+	}
 }
 
 func joinURL(baseURL string, requestPath string, rawQuery string) (string, error) {
@@ -42,11 +66,11 @@ func joinURL(baseURL string, requestPath string, rawQuery string) (string, error
 		return "", fmt.Errorf("parse provider base_url: %w", err)
 	}
 	basePath := strings.TrimRight(base.Path, "/")
-	if basePath != "" && strings.HasPrefix(requestPath, basePath+"/") {
-		base.Path = requestPath
-	} else {
-		base.Path = basePath + requestPath
+	path := strings.TrimPrefix(requestPath, "/v1")
+	if path == "" {
+		path = "/"
 	}
+	base.Path = basePath + path
 	base.RawQuery = rawQuery
 	return base.String(), nil
 }

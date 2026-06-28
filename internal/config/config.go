@@ -78,6 +78,9 @@ func (c *Config) Validate() error {
 		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return fmt.Errorf("provider %q base_url is invalid", name)
 		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return fmt.Errorf("provider %q base_url must use http or https", name)
+		}
 		if strings.TrimSpace(provider.APIKey) == "" {
 			return fmt.Errorf("provider %q api_key is required", name)
 		}

@@ -95,6 +95,64 @@ providers:
 	}
 }
 
+func TestLoadRejectsUnsupportedBaseURLScheme(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`server:
+  address: 127.0.0.1:8080
+  api_key: local-key
+providers:
+  openai:
+    base_url: ftp://api.example.com/v1
+    api_key: sk-test
+    models:
+      - model
+`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "base_url") {
+		t.Fatalf("error = %q, want base_url", err)
+	}
+	if !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %q, want http or https", err)
+	}
+}
+
+func TestLoadRejectsMalformedBaseURL(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`server:
+  address: 127.0.0.1:8080
+  api_key: local-key
+providers:
+  openai:
+    base_url: ://bad
+    api_key: sk-test
+    models:
+      - model
+`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "base_url") {
+		t.Fatalf("error = %q, want base_url", err)
+	}
+	if !strings.Contains(err.Error(), "invalid") {
+		t.Fatalf("error = %q, want invalid", err)
+	}
+}
+
 func TestLoadRejectsMalformedProviderKeyEnvSyntax(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
