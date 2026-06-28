@@ -2,6 +2,10 @@ server:
   address: 127.0.0.1:8080
   api_key: local-dev-key
 
+defaults:
+  provider: openai
+  model: gpt-4o
+
 providers:
   openai:
     base_url: https://api.openai.com/v1

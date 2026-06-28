@@ -12,7 +12,13 @@ import (
 
 type Config struct {
 	Server    ServerConfig              `yaml:"server"`
+	Defaults  DefaultsConfig            `yaml:"defaults"`
 	Providers map[string]ProviderConfig `yaml:"providers"`
+}
+
+type DefaultsConfig struct {
+	Provider string `yaml:"provider" json:"provider"`
+	Model    string `yaml:"model" json:"model"`
 }
 
 type ServerConfig struct {
@@ -84,6 +90,47 @@ func (c *Config) Validate() error {
 		if strings.TrimSpace(provider.APIKey) == "" {
 			return fmt.Errorf("provider %q api_key is required", name)
 		}
+	}
+	if err := c.ValidateDefaults(c.Defaults); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Config) ValidateDefaults(defaults DefaultsConfig) error {
+	if defaults.Provider == "" && defaults.Model == "" {
+		return nil
+	}
+	if defaults.Provider == "" || defaults.Model == "" {
+		return fmt.Errorf("defaults.provider and defaults.model must be set together")
+	}
+	provider, ok := c.Providers[defaults.Provider]
+	if !ok {
+		return fmt.Errorf("defaults.provider %q is not configured", defaults.Provider)
+	}
+	for _, model := range provider.Models {
+		if model == defaults.Model {
+			return nil
+		}
+	}
+	return fmt.Errorf("defaults.model %q is not configured for provider %q", defaults.Model, defaults.Provider)
+}
+
+func SaveDefaults(path string, defaults DefaultsConfig) error {
+	cfg, err := Load(path)
+	if err != nil {
+		return err
+	}
+	if err := cfg.ValidateDefaults(defaults); err != nil {
+		return err
+	}
+	cfg.Defaults = defaults
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return fmt.Errorf("write config: %w", err)
 	}
 	return nil
 }

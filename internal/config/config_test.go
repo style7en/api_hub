@@ -184,3 +184,130 @@ providers:
 		t.Fatalf("error = %q, want ${NAME}", err)
 	}
 }
+
+func TestLoadReadsDefaults(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`server:
+  address: 127.0.0.1:8080
+  api_key: local-key
+defaults:
+  provider: openrouter
+  model: qwen/qwen3-coder:free
+providers:
+  openrouter:
+    base_url: https://openrouter.ai/api/v1
+    api_key: sk-test
+    models:
+      - qwen/qwen3-coder:free
+`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+	if cfg.Defaults.Provider != "openrouter" {
+		t.Fatalf("default provider = %q", cfg.Defaults.Provider)
+	}
+	if cfg.Defaults.Model != "qwen/qwen3-coder:free" {
+		t.Fatalf("default model = %q", cfg.Defaults.Model)
+	}
+}
+
+func TestLoadRejectsInvalidDefaultProvider(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`server:
+  address: 127.0.0.1:8080
+  api_key: local-key
+defaults:
+  provider: missing
+  model: gpt-4o
+providers:
+  openai:
+    base_url: https://api.openai.com/v1
+    api_key: sk-test
+    models:
+      - gpt-4o
+`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "defaults.provider") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestLoadRejectsInvalidDefaultModel(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`server:
+  address: 127.0.0.1:8080
+  api_key: local-key
+defaults:
+  provider: openai
+  model: missing-model
+providers:
+  openai:
+    base_url: https://api.openai.com/v1
+    api_key: sk-test
+    models:
+      - gpt-4o
+`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "defaults.model") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestSaveDefaultsUpdatesYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`server:
+  address: 127.0.0.1:8080
+  api_key: local-key
+providers:
+  openai:
+    base_url: https://api.openai.com/v1
+    api_key: sk-test
+    models:
+      - gpt-4o
+  deepseek:
+    base_url: https://api.deepseek.com/v1
+    api_key: sk-deepseek
+    models:
+      - deepseek-chat
+`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := SaveDefaults(path, DefaultsConfig{Provider: "deepseek", Model: "deepseek-chat"}); err != nil {
+		t.Fatalf("SaveDefaults returned error: %v", err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+	if cfg.Defaults.Provider != "deepseek" || cfg.Defaults.Model != "deepseek-chat" {
+		t.Fatalf("defaults = %#v", cfg.Defaults)
+	}
+	if _, ok := cfg.Providers["openai"]; !ok {
+		t.Fatal("openai provider was not preserved")
+	}
+}

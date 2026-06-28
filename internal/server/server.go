@@ -40,7 +40,7 @@ func handleV1(cfg *config.Config) http.HandlerFunc {
 			openaierror.Write(w, http.StatusBadRequest, "invalid_request_error", "failed to read request body")
 			return
 		}
-		providerName, rewrittenBody, err := router.RewriteModelBody(body)
+		providerName, rewrittenBody, err := router.RewriteModelBodyWithDefaults(body, cfg.Defaults)
 		if err != nil {
 			openaierror.Write(w, http.StatusBadRequest, "invalid_request_error", err.Error())
 			return

@@ -1,2 +1,4 @@
 .worktrees/
 api-in-one.exe
+config.local.yaml
+config.yaml

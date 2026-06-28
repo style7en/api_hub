@@ -3,7 +3,10 @@ package router
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
+
+	"api-in-one/internal/config"
 )
 
 func TestParseModelPrefix(t *testing.T) {
@@ -105,5 +108,53 @@ func TestRewriteModelBodyRejectsEmptyModel(t *testing.T) {
 	_, _, err := RewriteModelBody([]byte(`{"model":""}`))
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestRewriteModelBodyWithDefaultsUsesUnprefixedDefault(t *testing.T) {
+	body := []byte(`{"model":"anything","messages":[]}`)
+	defaults := config.DefaultsConfig{Provider: "openrouter", Model: "qwen/qwen3-coder:free"}
+	provider, rewritten, err := RewriteModelBodyWithDefaults(body, defaults)
+	if err != nil {
+		t.Fatalf("RewriteModelBodyWithDefaults returned error: %v", err)
+	}
+	if provider != "openrouter" {
+		t.Fatalf("provider = %q", provider)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(rewritten, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded["model"] != "qwen/qwen3-coder:free" {
+		t.Fatalf("model = %v", decoded["model"])
+	}
+}
+
+func TestRewriteModelBodyWithDefaultsKeepsPrefixedRouting(t *testing.T) {
+	body := []byte(`{"model":"deepseek/deepseek-chat","messages":[]}`)
+	defaults := config.DefaultsConfig{Provider: "openrouter", Model: "qwen/qwen3-coder:free"}
+	provider, rewritten, err := RewriteModelBodyWithDefaults(body, defaults)
+	if err != nil {
+		t.Fatalf("RewriteModelBodyWithDefaults returned error: %v", err)
+	}
+	if provider != "deepseek" {
+		t.Fatalf("provider = %q", provider)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(rewritten, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded["model"] != "deepseek-chat" {
+		t.Fatalf("model = %v", decoded["model"])
+	}
+}
+
+func TestRewriteModelBodyWithDefaultsRejectsUnprefixedWithoutDefaults(t *testing.T) {
+	_, _, err := RewriteModelBodyWithDefaults([]byte(`{"model":"gpt-4o"}`), config.DefaultsConfig{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "defaults") {
+		t.Fatalf("error = %v", err)
 	}
 }

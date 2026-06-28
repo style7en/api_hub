@@ -176,6 +176,40 @@ func TestServerPassesThroughStreamingResponse(t *testing.T) {
 	}
 }
 
+func TestServerRoutesUnprefixedModelThroughDefaults(t *testing.T) {
+	var gotBody string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		gotBody = string(data)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"chatcmpl-test"}`))
+	}))
+	defer upstream.Close()
+
+	cfg := testConfig(upstream.URL)
+	cfg.Defaults = config.DefaultsConfig{Provider: "openai", Model: "gpt-4o"}
+	handler := New(cfg)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"anything","messages":[]}`))
+	req.Header.Set("Authorization", "Bearer local-key")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal([]byte(gotBody), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["model"] != "gpt-4o" {
+		t.Fatalf("upstream model = %v", body["model"])
+	}
+}
+
 func testConfig(baseURL string) *config.Config {
 	return &config.Config{
 		Server: config.ServerConfig{Address: "127.0.0.1:0", APIKey: "local-key"},
