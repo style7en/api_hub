@@ -119,4 +119,10 @@ providers:
 	if !strings.Contains(err.Error(), "providers.openai.api_key") {
 		t.Fatalf("error = %q, want providers.openai.api_key", err)
 	}
+	if !strings.Contains(err.Error(), "malformed") {
+		t.Fatalf("error = %q, want malformed", err)
+	}
+	if !strings.Contains(err.Error(), "${NAME}") {
+		t.Fatalf("error = %q, want ${NAME}", err)
+	}
 }

@@ -88,7 +88,7 @@ func (c *Config) Validate() error {
 func expandEnv(value, field string) (string, error) {
 	if strings.HasPrefix(value, "${") {
 		if !strings.HasSuffix(value, "}") {
-			return "", fmt.Errorf("%s has malformed environment variable reference", field)
+			return "", fmt.Errorf("%s has malformed environment variable reference, expected ${NAME}", field)
 		}
 		name := strings.TrimSuffix(strings.TrimPrefix(value, "${"), "}")
 		resolved := os.Getenv(name)
