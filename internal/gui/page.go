@@ -123,7 +123,7 @@ function render(data) {
     document.getElementById('client-panel').classList.add('visible');
     document.getElementById('info-url').textContent = data.client.base_url;
     document.getElementById('info-key').textContent = data.client.api_key;
-    document.getElementById('info-model').textContent = data.client.model;
+    document.getElementById('info-model').textContent = 'auto';
   } else {
     badge.innerHTML = '<span class="badge-dot"></span>已停止';
     badge.className = 'badge badge-stopped';
