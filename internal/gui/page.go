@@ -4,7 +4,7 @@ const indexHTML = `<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <title>api-in-one</title>
+  <title>API Hub</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; color: #e2e8f0; }
@@ -50,7 +50,7 @@ const indexHTML = `<!doctype html>
 </head>
 <body>
 <div class="wrapper">
-  <h1>api-<span>in-one</span></h1>
+  <h1>API <span>Hub</span></h1>
   <div class="card">
     <div class="card-header">
       <h2>API 服务</h2>
@@ -81,7 +81,7 @@ const indexHTML = `<!doctype html>
     <div class="card-header"><h2>日志</h2></div>
     <div class="log-panel" id="logs"></div>
   </div>
-  <div class="footer">api-in-one</div>
+  <div class="footer">API Hub</div>
 </div>
 <script>
 let state = null;

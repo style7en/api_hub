@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
 type Server struct {

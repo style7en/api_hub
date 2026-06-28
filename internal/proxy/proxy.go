@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
 func Forward(w http.ResponseWriter, r *http.Request, provider config.ProviderConfig, body []byte) error {

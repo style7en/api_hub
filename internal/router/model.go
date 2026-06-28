@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
 func ParseModelPrefix(model string) (string, string, error) {
@@ -53,6 +53,23 @@ func RewriteModelBodyWithDefaults(body []byte, defaults config.DefaultsConfig) (
 		return "", nil, fmt.Errorf("rewrite json body: %w", err)
 	}
 	return defaults.Provider, rewritten, nil
+}
+
+func ForceModel(body []byte, model string) ([]byte, error) {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("invalid json body")
+	}
+	modelRaw, err := json.Marshal(model)
+	if err != nil {
+		return nil, fmt.Errorf("marshal model: %w", err)
+	}
+	payload["model"] = modelRaw
+	rewritten, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("rewrite json body: %w", err)
+	}
+	return rewritten, nil
 }
 
 func modelFromPayload(payload map[string]json.RawMessage) (string, error) {

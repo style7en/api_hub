@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
 func TestHandlerReturnsPrefixedModels(t *testing.T) {

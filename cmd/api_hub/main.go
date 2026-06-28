@@ -8,9 +8,9 @@ import (
 	"os/exec"
 	"runtime"
 
-	"api-in-one/internal/config"
-	"api-in-one/internal/gui"
-	"api-in-one/internal/server"
+	"api_hub/internal/config"
+	"api_hub/internal/gui"
+	"api_hub/internal/server"
 )
 
 func main() {
@@ -35,17 +35,17 @@ func main() {
 
 func runAPI(cfg *config.Config) {
 	handler := server.New(cfg)
-	log.Printf("api-in-one listening on %s", cfg.Server.Address)
+	log.Printf("API Hub listening on %s", cfg.Server.Address)
 	if err := http.ListenAndServe(cfg.Server.Address, handler); err != nil {
 		log.Fatalf("listen: %v", err)
 	}
 }
 
 func runGUI(cfg *config.Config, configPath, guiListen string, openBrowser bool) {
-	manager := gui.NewRuntimeManager(cfg)
+	manager := gui.NewRuntimeManager(configPath, cfg)
 	handler := gui.NewServer(configPath, cfg, manager)
 	guiURL := fmt.Sprintf("http://%s", guiListen)
-	log.Printf("api-in-one GUI listening on %s", guiURL)
+	log.Printf("API Hub GUI listening on %s", guiURL)
 	if openBrowser {
 		openURL(guiURL)
 	}

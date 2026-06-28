@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
 func TestParseModelPrefix(t *testing.T) {
@@ -156,5 +156,50 @@ func TestRewriteModelBodyWithDefaultsRejectsUnprefixedWithoutDefaults(t *testing
 	}
 	if !strings.Contains(err.Error(), "defaults") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestForceModelReplacesClientModel(t *testing.T) {
+	rewritten, err := ForceModel([]byte(`{"model":"whatever-client-sends","messages":[]}`), "gpt-4o")
+	if err != nil {
+		t.Fatalf("ForceModel returned error: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(rewritten, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded["model"] != "gpt-4o" {
+		t.Fatalf("model = %v", decoded["model"])
+	}
+}
+
+func TestForceModelAddsModelFieldWhenMissing(t *testing.T) {
+	rewritten, err := ForceModel([]byte(`{"input":"hello"}`), "text-embedding-3")
+	if err != nil {
+		t.Fatalf("ForceModel returned error: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(rewritten, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded["model"] != "text-embedding-3" {
+		t.Fatalf("model = %v", decoded["model"])
+	}
+}
+
+func TestForceModelPreservesOtherFields(t *testing.T) {
+	rewritten, err := ForceModel([]byte(`{"model":"old","seed":42}`), "new")
+	if err != nil {
+		t.Fatalf("ForceModel returned error: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(rewritten, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded["model"] != "new" {
+		t.Fatalf("model = %v", decoded["model"])
+	}
+	if decoded["seed"] != float64(42) {
+		t.Fatalf("seed = %v", decoded["seed"])
 	}
 }

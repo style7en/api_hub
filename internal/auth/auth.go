@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"api-in-one/internal/openaierror"
+	"api_hub/internal/openaierror"
 )
 
 func Middleware(apiKey string, next http.Handler) http.Handler {

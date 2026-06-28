@@ -4,12 +4,12 @@ import (
 	"io"
 	"net/http"
 
-	"api-in-one/internal/auth"
-	"api-in-one/internal/config"
-	"api-in-one/internal/models"
-	"api-in-one/internal/openaierror"
-	"api-in-one/internal/proxy"
-	"api-in-one/internal/router"
+	"api_hub/internal/auth"
+	"api_hub/internal/config"
+	"api_hub/internal/models"
+	"api_hub/internal/openaierror"
+	"api_hub/internal/proxy"
+	"api_hub/internal/router"
 )
 
 func New(cfg *config.Config) http.Handler {
@@ -35,19 +35,23 @@ func handleV1(cfg *config.Config) http.HandlerFunc {
 			openaierror.Write(w, http.StatusMethodNotAllowed, "invalid_request_error", "method not allowed")
 			return
 		}
+		if cfg.Defaults.Provider == "" || cfg.Defaults.Model == "" {
+			openaierror.Write(w, http.StatusBadRequest, "invalid_request_error", "no provider selected, use GUI to select one")
+			return
+		}
+		provider, ok := cfg.Providers[cfg.Defaults.Provider]
+		if !ok {
+			openaierror.Write(w, http.StatusBadRequest, "invalid_request_error", "unknown provider: "+cfg.Defaults.Provider)
+			return
+		}
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			openaierror.Write(w, http.StatusBadRequest, "invalid_request_error", "failed to read request body")
 			return
 		}
-		providerName, rewrittenBody, err := router.RewriteModelBodyWithDefaults(body, cfg.Defaults)
+		rewrittenBody, err := router.ForceModel(body, cfg.Defaults.Model)
 		if err != nil {
 			openaierror.Write(w, http.StatusBadRequest, "invalid_request_error", err.Error())
-			return
-		}
-		provider, ok := cfg.Providers[providerName]
-		if !ok {
-			openaierror.Write(w, http.StatusBadRequest, "invalid_request_error", "unknown provider: "+providerName)
 			return
 		}
 		if err := proxy.Forward(w, r, provider, rewrittenBody); err != nil {

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
-func TestServerRoutesChatCompletionByModelPrefix(t *testing.T) {
+func TestServerRoutesAllRequestsToDefaults(t *testing.T) {
 	var gotBody string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, err := io.ReadAll(r.Body)
@@ -26,7 +26,7 @@ func TestServerRoutesChatCompletionByModelPrefix(t *testing.T) {
 
 	cfg := testConfig(upstream.URL)
 	handler := New(cfg)
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"openai/gpt-4o","messages":[]}`))
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"anything-at-all","messages":[]}`))
 	req.Header.Set("Authorization", "Bearer local-key")
 	rr := httptest.NewRecorder()
 
@@ -40,14 +40,52 @@ func TestServerRoutesChatCompletionByModelPrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 	if body["model"] != "gpt-4o" {
-		t.Fatalf("upstream model = %v", body["model"])
+		t.Fatalf("upstream model = %v, expected gpt-4o", body["model"])
 	}
 }
 
-func TestServerRejectsUnknownProvider(t *testing.T) {
-	cfg := testConfig("http://127.0.0.1:1")
+func TestServerAddsModelFieldWhenMissing(t *testing.T) {
+	var gotBody string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		gotBody = string(data)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"chatcmpl-test"}`))
+	}))
+	defer upstream.Close()
+
+	cfg := testConfig(upstream.URL)
 	handler := New(cfg)
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"missing/gpt-4o"}`))
+	req := httptest.NewRequest(http.MethodPost, "/v1/embeddings", strings.NewReader(`{"input":"hello"}`))
+	req.Header.Set("Authorization", "Bearer local-key")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal([]byte(gotBody), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["model"] != "gpt-4o" {
+		t.Fatalf("upstream model = %v, expected gpt-4o", body["model"])
+	}
+}
+
+func TestServerRejectsRequestWhenNoDefaults(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Address: "127.0.0.1:0", APIKey: "local-key"},
+		Providers: map[string]config.ProviderConfig{
+			"openai": {BaseURL: "http://127.0.0.1:1/v1", APIKey: "upstream-key", Models: []string{"gpt-4o"}},
+		},
+	}
+	handler := New(cfg)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"gpt-4o"}`))
 	req.Header.Set("Authorization", "Bearer local-key")
 	rr := httptest.NewRecorder()
 
@@ -56,24 +94,7 @@ func TestServerRejectsUnknownProvider(t *testing.T) {
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d", rr.Code)
 	}
-	if !strings.Contains(rr.Body.String(), "unknown provider") {
-		t.Fatalf("body = %s", rr.Body.String())
-	}
-}
-
-func TestServerRejectsModelLessTransparentRequest(t *testing.T) {
-	cfg := testConfig("http://127.0.0.1:1")
-	handler := New(cfg)
-	req := httptest.NewRequest(http.MethodPost, "/v1/audio/transcriptions", strings.NewReader(`{"file":"x"}`))
-	req.Header.Set("Authorization", "Bearer local-key")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d", rr.Code)
-	}
-	if !strings.Contains(rr.Body.String(), "request body must include model") {
+	if !strings.Contains(rr.Body.String(), "no provider selected") {
 		t.Fatalf("body = %s", rr.Body.String())
 	}
 }
@@ -123,7 +144,7 @@ func TestServerDoesNotAppendErrorAfterPartialUpstreamResponse(t *testing.T) {
 
 	cfg := testConfig(upstream.URL)
 	handler := New(cfg)
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"openai/gpt-4o","messages":[]}`))
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"ignored"}`))
 	req.Header.Set("Authorization", "Bearer local-key")
 	rr := httptest.NewRecorder()
 
@@ -159,7 +180,7 @@ func TestServerPassesThroughStreamingResponse(t *testing.T) {
 
 	cfg := testConfig(upstream.URL)
 	handler := New(cfg)
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"openai/gpt-4o","stream":true}`))
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"ignored","stream":true}`))
 	req.Header.Set("Authorization", "Bearer local-key")
 	rr := httptest.NewRecorder()
 
@@ -176,43 +197,10 @@ func TestServerPassesThroughStreamingResponse(t *testing.T) {
 	}
 }
 
-func TestServerRoutesUnprefixedModelThroughDefaults(t *testing.T) {
-	var gotBody string
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		gotBody = string(data)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"chatcmpl-test"}`))
-	}))
-	defer upstream.Close()
-
-	cfg := testConfig(upstream.URL)
-	cfg.Defaults = config.DefaultsConfig{Provider: "openai", Model: "gpt-4o"}
-	handler := New(cfg)
-	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"anything","messages":[]}`))
-	req.Header.Set("Authorization", "Bearer local-key")
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d body = %s", rr.Code, rr.Body.String())
-	}
-	var body map[string]any
-	if err := json.Unmarshal([]byte(gotBody), &body); err != nil {
-		t.Fatal(err)
-	}
-	if body["model"] != "gpt-4o" {
-		t.Fatalf("upstream model = %v", body["model"])
-	}
-}
-
 func testConfig(baseURL string) *config.Config {
 	return &config.Config{
-		Server: config.ServerConfig{Address: "127.0.0.1:0", APIKey: "local-key"},
+		Server:   config.ServerConfig{Address: "127.0.0.1:0", APIKey: "local-key"},
+		Defaults: config.DefaultsConfig{Provider: "openai", Model: "gpt-4o"},
 		Providers: map[string]config.ProviderConfig{
 			"openai": {BaseURL: baseURL + "/v1", APIKey: "upstream-key", Models: []string{"gpt-4o"}},
 		},

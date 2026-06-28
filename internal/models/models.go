@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sort"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
 type listResponse struct {

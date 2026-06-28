@@ -10,16 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
 func TestServerReturnsConfigState(t *testing.T) {
 	path := writeGUIConfig(t)
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := NewServer(path, cfg, NewRuntimeManager(cfg))
+	cfg, _ := config.Load(path)
+	server := NewServer(path, cfg, NewRuntimeManager(path, cfg))
 	req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
 	rr := httptest.NewRecorder()
 
@@ -48,11 +45,8 @@ func TestServerReturnsConfigState(t *testing.T) {
 
 func TestServerSavesDefaults(t *testing.T) {
 	path := writeGUIConfig(t)
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := NewServer(path, cfg, NewRuntimeManager(cfg))
+	cfg, _ := config.Load(path)
+	server := NewServer(path, cfg, NewRuntimeManager(path, cfg))
 	body := bytes.NewBufferString(`{"provider":"deepseek","model":"deepseek-chat"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/defaults", body)
 	rr := httptest.NewRecorder()
@@ -73,11 +67,8 @@ func TestServerSavesDefaults(t *testing.T) {
 
 func TestServerRejectsDefaultsWhileRunning(t *testing.T) {
 	path := writeGUIConfig(t)
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	manager := NewRuntimeManager(cfg)
+	cfg, _ := config.Load(path)
+	manager := NewRuntimeManager(path, cfg)
 	manager.Start()
 	defer manager.Stop()
 	server := NewServer(path, cfg, manager)
@@ -97,11 +88,8 @@ func TestServerRejectsDefaultsWhileRunning(t *testing.T) {
 
 func TestServerRejectsInvalidDefaults(t *testing.T) {
 	path := writeGUIConfig(t)
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := NewServer(path, cfg, NewRuntimeManager(cfg))
+	cfg, _ := config.Load(path)
+	server := NewServer(path, cfg, NewRuntimeManager(path, cfg))
 	body := bytes.NewBufferString(`{"provider":"missing","model":"x"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/defaults", body)
 	rr := httptest.NewRecorder()
@@ -115,11 +103,8 @@ func TestServerRejectsInvalidDefaults(t *testing.T) {
 
 func TestServerStartStopStatus(t *testing.T) {
 	path := writeGUIConfig(t)
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	manager := NewRuntimeManager(cfg)
+	cfg, _ := config.Load(path)
+	manager := NewRuntimeManager(path, cfg)
 	server := NewServer(path, cfg, manager)
 
 	startReq := httptest.NewRequest(http.MethodPost, "/api/service/start", nil)
@@ -145,11 +130,8 @@ func TestServerStartStopStatus(t *testing.T) {
 
 func TestServerReturnsHTMLPage(t *testing.T) {
 	path := writeGUIConfig(t)
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := NewServer(path, cfg, NewRuntimeManager(cfg))
+	cfg, _ := config.Load(path)
+	server := NewServer(path, cfg, NewRuntimeManager(path, cfg))
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 
@@ -158,7 +140,7 @@ func TestServerReturnsHTMLPage(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d", rr.Code)
 	}
-	if !strings.Contains(rr.Body.String(), "api-in-one") {
+	if !strings.Contains(rr.Body.String(), "API Hub") {
 		t.Fatalf("body = %s", rr.Body.String())
 	}
 }

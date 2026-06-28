@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"api-in-one/internal/config"
-	"api-in-one/internal/server"
+	"api_hub/internal/config"
+	"api_hub/internal/server"
 )
 
 type ServiceStatus struct {
@@ -16,14 +16,15 @@ type ServiceStatus struct {
 }
 
 type RuntimeManager struct {
-	mu   sync.Mutex
-	cfg  *config.Config
-	srv  *http.Server
-	logs []string
+	mu         sync.Mutex
+	configPath string
+	cfg        *config.Config
+	srv        *http.Server
+	logs       []string
 }
 
-func NewRuntimeManager(cfg *config.Config) *RuntimeManager {
-	return &RuntimeManager{cfg: cfg, logs: make([]string, 0)}
+func NewRuntimeManager(configPath string, cfg *config.Config) *RuntimeManager {
+	return &RuntimeManager{configPath: configPath, cfg: cfg, logs: make([]string, 0)}
 }
 
 func (m *RuntimeManager) Start() error {
@@ -32,7 +33,12 @@ func (m *RuntimeManager) Start() error {
 	if m.srv != nil {
 		return nil
 	}
-	handler := server.New(m.cfg)
+	cfg, err := config.Load(m.configPath)
+	if err != nil {
+		return err
+	}
+	m.cfg = cfg
+	handler := server.New(cfg)
 	srv := &http.Server{Addr: m.cfg.Server.Address, Handler: handler}
 	m.srv = srv
 	m.addLogLocked("API server starting on " + m.cfg.Server.Address)

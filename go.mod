@@ -1,4 +1,4 @@
-module api-in-one
+module api_hub
 
 go 1.22
 

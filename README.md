@@ -1,4 +1,4 @@
-# api-in-one
+# API Hub
 
 本地 OpenAI 兼容 API 聚合代理。客户端只需要连接一个本地地址，通过 `provider/model` 格式切换不同上游 OpenAI-compatible API。
 
@@ -15,13 +15,13 @@
 ## 构建
 
 ```bash
-go build ./cmd/api-in-one
+go build ./cmd/api_hub
 ```
 
 Windows 生成：
 
 ```text
-api-in-one.exe
+api_hub.exe
 ```
 
 ## 启动
@@ -29,19 +29,19 @@ api-in-one.exe
 默认启动 Web GUI（自动打开浏览器）：
 
 ```bash
-./api-in-one
+./api_hub
 ```
 
 仅启动 API 代理（无 GUI）：
 
 ```bash
-./api-in-one -mode api
+./api_hub -mode api
 ```
 
 指定配置文件：
 
 ```bash
-./api-in-one -config config.yaml
+./api_hub -config config.yaml
 ```
 
 启动参数：
@@ -258,5 +258,5 @@ Authorization: Bearer local-dev-key
 
 ```bash
 go test ./...
-go build ./cmd/api-in-one
+go build ./cmd/api_hub
 ```

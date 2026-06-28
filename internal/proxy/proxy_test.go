@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"api-in-one/internal/config"
+	"api_hub/internal/config"
 )
 
 func TestForwardSendsProviderKeyAndBody(t *testing.T) {
