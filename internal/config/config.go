@@ -42,9 +42,15 @@ func Load(path string) (*Config, error) {
 	if cfg.Server.Address == "" {
 		cfg.Server.Address = "127.0.0.1:8080"
 	}
-	cfg.Server.APIKey = expandEnv(cfg.Server.APIKey)
+	cfg.Server.APIKey, err = expandEnv(cfg.Server.APIKey, "server.api_key")
+	if err != nil {
+		return nil, err
+	}
 	for name, provider := range cfg.Providers {
-		provider.APIKey = expandEnv(provider.APIKey)
+		provider.APIKey, err = expandEnv(provider.APIKey, fmt.Sprintf("providers.%s.api_key", name))
+		if err != nil {
+			return nil, err
+		}
 		cfg.Providers[name] = provider
 	}
 
@@ -79,9 +85,17 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-func expandEnv(value string) string {
-	if strings.HasPrefix(value, "${") && strings.HasSuffix(value, "}") {
-		return os.Getenv(strings.TrimSuffix(strings.TrimPrefix(value, "${"), "}"))
+func expandEnv(value, field string) (string, error) {
+	if strings.HasPrefix(value, "${") {
+		if !strings.HasSuffix(value, "}") {
+			return "", fmt.Errorf("%s has malformed environment variable reference", field)
+		}
+		name := strings.TrimSuffix(strings.TrimPrefix(value, "${"), "}")
+		resolved := os.Getenv(name)
+		if resolved == "" {
+			return "", fmt.Errorf("%s references unset environment variable %s", field, name)
+		}
+		return resolved, nil
 	}
-	return value
+	return value, nil
 }

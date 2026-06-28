@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -60,6 +61,12 @@ providers:
 	if err == nil {
 		t.Fatal("expected error")
 	}
+	if !strings.Contains(err.Error(), "MISSING_API_KEY") {
+		t.Fatalf("error = %q, want MISSING_API_KEY", err)
+	}
+	if !strings.Contains(err.Error(), "providers.openai.api_key") {
+		t.Fatalf("error = %q, want providers.openai.api_key", err)
+	}
 }
 
 func TestLoadRejectsInvalidProviderName(t *testing.T) {
@@ -82,5 +89,34 @@ providers:
 	_, err = Load(path)
 	if err == nil {
 		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "bad/name") {
+		t.Fatalf("error = %q, want bad/name", err)
+	}
+}
+
+func TestLoadRejectsMalformedProviderKeyEnvSyntax(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`server:
+  address: 127.0.0.1:8080
+  api_key: local-key
+providers:
+  openai:
+    base_url: https://api.openai.com/v1
+    api_key: ${BROKEN
+    models:
+      - gpt-4o
+`), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "providers.openai.api_key") {
+		t.Fatalf("error = %q, want providers.openai.api_key", err)
 	}
 }
