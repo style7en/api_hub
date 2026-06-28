@@ -10,7 +10,12 @@ import (
 
 func Middleware(apiKey string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		authorization := r.Header.Get("Authorization")
+		if !strings.HasPrefix(authorization, "Bearer ") {
+			openaierror.Write(w, http.StatusUnauthorized, "authentication_error", "invalid or missing bearer token")
+			return
+		}
+		got := strings.TrimPrefix(authorization, "Bearer ")
 		if subtle.ConstantTimeCompare([]byte(got), []byte(apiKey)) != 1 {
 			openaierror.Write(w, http.StatusUnauthorized, "authentication_error", "invalid or missing bearer token")
 			return
