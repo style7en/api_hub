@@ -147,6 +147,35 @@ func TestServerRequiresAuth(t *testing.T) {
 	}
 }
 
+func TestServerPassesThroughStreamingResponse(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.(http.Flusher).Flush()
+		_, _ = w.Write([]byte("data: {\"delta\":\"hi\"}\n\n"))
+		w.(http.Flusher).Flush()
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer upstream.Close()
+
+	cfg := testConfig(upstream.URL)
+	handler := New(cfg)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"openai/gpt-4o","stream":true}`))
+	req.Header.Set("Authorization", "Bearer local-key")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d", rr.Code)
+	}
+	if rr.Header().Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("content-type = %q", rr.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(rr.Body.String(), "data: [DONE]") {
+		t.Fatalf("body = %s", rr.Body.String())
+	}
+}
+
 func testConfig(baseURL string) *config.Config {
 	return &config.Config{
 		Server: config.ServerConfig{Address: "127.0.0.1:0", APIKey: "local-key"},
